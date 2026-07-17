@@ -27,7 +27,10 @@ _semaphore = asyncio.Semaphore(2)
 # [DEBUG-glm] 文件日志 — 诊断智能体失败
 _debug_logger = logging.getLogger("glm_debug")
 _debug_logger.setLevel(logging.DEBUG)
-_fh = logging.FileHandler("C:/Users/24711/Desktop/glm_debug.log", encoding="utf-8")
+# 使用相对路径（Docker 容器会映射到 /app/logs）
+_log_dir = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
+os.makedirs(_log_dir, exist_ok=True)
+_fh = logging.FileHandler(os.path.join(_log_dir, "glm_debug.log"), encoding="utf-8")
 _fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
 _debug_logger.addHandler(_fh)
 _debug_logger.propagate = False
