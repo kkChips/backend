@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# 使用阿里云 Docker Hub 镜像
+FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.11-slim
 
 WORKDIR /app
 
