@@ -39,6 +39,11 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    # ★ 修复：credentials 可能为 None（HTTPBearer auto_error=False）
+    # 原代码直接 credentials.credentials 会抛 AttributeError → 500
+    # 应返回 401 让前端引导登录
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供认证令牌")
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
