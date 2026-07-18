@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from .database import init_db
-from .routers import auth_router, glm_router, data_router, admin_router
+from .routers import auth_router, glm_router, data_router, admin_router, community_router
 
 load_dotenv()
 
@@ -43,6 +43,7 @@ app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(glm_router.router, prefix="/api/v1/glm", tags=["glm"])
 app.include_router(data_router.router, prefix="/api/v1/data", tags=["data"])
 app.include_router(admin_router.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(community_router.router, prefix="/api/v1/community", tags=["community"])
 
 
 @app.get("/api/v1/health")
