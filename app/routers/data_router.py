@@ -1,5 +1,7 @@
 """数据持久化路由 — profile/resources/path/assess-history"""
 
+import logging
+import traceback
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,39 +12,62 @@ from ..auth import get_current_user
 from ..schemas import DataPutReq, DataGetRes
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ===== Profile =====
 @router.get("/profile", response_model=DataGetRes)
 async def get_profile(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ProfileRecord).where(ProfileRecord.user_id == user.id))
-    record = result.scalar_one_or_none()
-    if not record:
-        return DataGetRes(data=None)
-    return DataGetRes(data=record.data, updated_at=record.updated_at.isoformat() if record.updated_at else None)
+    try:
+        result = await db.execute(select(ProfileRecord).where(ProfileRecord.user_id == user.id))
+        record = result.scalar_one_or_none()
+        if not record:
+            return DataGetRes(data=None)
+        # ★ MySQL JSON 字段可能返回 str，需兼容处理
+        data = record.data
+        if isinstance(data, str):
+            import json
+            data = json.loads(data) if data else None
+        return DataGetRes(data=data, updated_at=record.updated_at.isoformat() if record.updated_at else None)
+    except Exception as e:
+        logger.error("[GET /profile FAILED] %s\n%s", str(e), traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"profile查询失败: {str(e)}")
 
 
 @router.put("/profile")
 async def save_profile(req: DataPutReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ProfileRecord).where(ProfileRecord.user_id == user.id))
-    record = result.scalar_one_or_none()
-    if record:
-        record.data = req.data
-    else:
-        record = ProfileRecord(user_id=user.id, data=req.data)
-        db.add(record)
-    await db.commit()
-    return {"status": "ok"}
+    try:
+        result = await db.execute(select(ProfileRecord).where(ProfileRecord.user_id == user.id))
+        record = result.scalar_one_or_none()
+        if record:
+            record.data = req.data
+        else:
+            record = ProfileRecord(user_id=user.id, data=req.data)
+            db.add(record)
+        await db.commit()
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error("[PUT /profile FAILED] %s\n%s", str(e), traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"profile保存失败: {str(e)}")
 
 
 # ===== Resources =====
 @router.get("/resources", response_model=DataGetRes)
 async def get_resources(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ResourceRecord).where(ResourceRecord.user_id == user.id))
-    record = result.scalar_one_or_none()
-    if not record:
-        return DataGetRes(data=None)
-    return DataGetRes(data=record.data, updated_at=record.updated_at.isoformat() if record.updated_at else None)
+    try:
+        result = await db.execute(select(ResourceRecord).where(ResourceRecord.user_id == user.id))
+        record = result.scalar_one_or_none()
+        if not record:
+            return DataGetRes(data=None)
+        # ★ MySQL JSON 字段可能返回 str，需兼容处理
+        data = record.data
+        if isinstance(data, str):
+            import json
+            data = json.loads(data) if data else None
+        return DataGetRes(data=data, updated_at=record.updated_at.isoformat() if record.updated_at else None)
+    except Exception as e:
+        logger.error("[GET /resources FAILED] %s\n%s", str(e), traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"resources查询失败: {str(e)}")
 
 
 @router.put("/resources")
