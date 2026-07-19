@@ -1,20 +1,28 @@
 """FastAPI 主应用"""
 
 import os
+import logging
+import traceback
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from .database import init_db
+from .database import init_db, async_session
 from .routers import auth_router, glm_router, data_router, admin_router, community_router
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    try:
+        await init_db()
+        logger.info("[STARTUP] init_db 完成")
+    except Exception as e:
+        logger.error("[STARTUP] init_db 失败: %s\n%s", str(e), traceback.format_exc())
+        raise
     yield
 
 
@@ -49,3 +57,25 @@ app.include_router(community_router.router, prefix="/api/v1/community", tags=["c
 @app.get("/api/v1/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/api/v1/debug/db")
+async def debug_db():
+    """诊断端点：测试数据库连接和所有表是否可查询（无需认证）"""
+    from sqlalchemy import text
+    result = {"database_url": os.getenv("DATABASE_URL", "default"), "tables": {}, "errors": []}
+    try:
+        async with async_session() as session:
+            # 测试每个表的查询
+            tables_to_test = ["users", "profiles", "resources", "paths", "assess_history", "profile_history"]
+            for table_name in tables_to_test:
+                try:
+                    r = await session.execute(text(f"SELECT COUNT(*) FROM `{table_name}`"))
+                    count = r.scalar()
+                    result["tables"][table_name] = {"exists": True, "count": count}
+                except Exception as e:
+                    result["tables"][table_name] = {"exists": False, "error": str(e)}
+                    result["errors"].append(f"{table_name}: {str(e)}")
+    except Exception as e:
+        result["errors"].append(f"DB connection failed: {str(e)}")
+    return result
